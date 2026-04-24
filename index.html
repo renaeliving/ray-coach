@@ -865,11 +865,9 @@
       }
     }
 
-    function getIntroUrlForPlan(planName) {
-      if (PRO_PLAN_NAMES.includes(planName)) return PRO_INTRO_URL;
-      if (RAY_COACH_PLAN_NAMES.includes(planName)) return COACH_INTRO_URL;
-      return TRY_INTRO_URL;
-    }
+  function getIntroUrlForPlan() {
+  return "https://static.wixstatic.com/mp3/3cf059_83d806b74f4e40df93ff62f1e4cf2bc2.mp3";
+}
 
     function maybeAutoPlayWelcome(force = false) {
       if (!force && (isPlayingWelcome || currentReplyAudio)) return;
