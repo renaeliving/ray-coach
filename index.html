@@ -1100,46 +1100,19 @@
       chatStatusEl.textContent = "Chat downloaded.";
     }
 
-    function applyUploadAccess(planName) {
-      const hasUploadAccess = PRO_PLAN_NAMES.includes(planName);
-      const isCoachPlan = RAY_COACH_PLAN_NAMES.includes(planName);
+   function applyUploadAccess() {
+  fileInput.disabled = true;
+  analyzeBtn.disabled = true;
+  fileInput.value = "";
+  fileInput.style.opacity = "0.45";
+  analyzeBtn.style.opacity = "0.45";
 
-      if (hasUploadAccess) {
-        fileInput.disabled = false;
-        analyzeBtn.disabled = false;
-        fileInput.style.opacity = "1";
-        analyzeBtn.style.opacity = "1";
-        uploadLockedMessageEl.style.display = "none";
-        statusEl.textContent = "";
-        if (upgradePanelEl) upgradePanelEl.style.display = "none";
-        if (uploadPanelEl) uploadPanelEl.style.display = "";
-        return;
-      }
+  uploadLockedMessageEl.style.display = "";
+  statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
 
-      if (isCoachPlan) {
-        fileInput.disabled = true;
-        analyzeBtn.disabled = true;
-        fileInput.value = "";
-        fileInput.style.opacity = "0.45";
-        analyzeBtn.style.opacity = "0.45";
-        uploadLockedMessageEl.style.display = "";
-        statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
-        if (upgradePanelEl) upgradePanelEl.style.display = "none";
-        if (uploadPanelEl) uploadPanelEl.style.display = "";
-        return;
-      }
-
-      fileInput.disabled = true;
-      analyzeBtn.disabled = true;
-      fileInput.value = "";
-      fileInput.style.opacity = "0.45";
-      analyzeBtn.style.opacity = "0.45";
-      uploadLockedMessageEl.style.display = "";
-      statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
-      if (upgradePanelEl) upgradePanelEl.style.display = "";
-      if (uploadPanelEl) uploadPanelEl.style.display = "";
-    }
-
+  if (upgradePanelEl) upgradePanelEl.style.display = "";
+  if (uploadPanelEl) uploadPanelEl.style.display = "";
+}
     async function sendChatMessage() {
       const message = (chatInput.value || "").trim();
       const projectName = getSelectedProjectName();
@@ -1504,7 +1477,7 @@
       maybeAutoPlayWelcome();
     });
 
- function initializePage() {
+function initializePage() {
   loadProjectsForUser().finally(() => {
     syncProjectInputMode();
   });
@@ -1512,12 +1485,10 @@
   updateOpenMicIndicator();
   setCoachTitle(getWixMemberName());
 
-  if (!hasResolvedPlan) {
-    wixPlanName = "Ray Pro";
-    hasResolvedPlan = true;
-    applyUploadAccess(wixPlanName);
-    maybeAutoPlayWelcome();
-  }
+  wixPlanName = "Ray Coach";
+  hasResolvedPlan = true;
+  applyUploadAccess();
+  maybeAutoPlayWelcome();
 }
 
     projectNameInput.addEventListener("change", () => {
@@ -1535,6 +1506,8 @@
     newProjectNameInput.addEventListener("input", updateProjectContextStatus);
 
     analyzeBtn.addEventListener("click", async () => {
+      statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
+return;
       if (!PRO_PLAN_NAMES.includes(wixPlanName)) {
         statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
         return;
