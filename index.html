@@ -1605,7 +1605,11 @@ return;
         sendChatMessage();
       }
     });
-
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    replayWelcome();
+  }, 800);
+});
     initializePage();
   </script>
 </body>
