@@ -927,9 +927,14 @@
           welcomeAudio.src = introUrl;
         }
 
-        welcomeAudio.play().catch((err) => {
-          console.error("Intro audio could not play:", err);
-        });
+      welcomeAudio.play()
+  .then(() => {
+    console.log("Coach welcome audio started successfully.");
+  })
+  .catch((err) => {
+    console.error("Intro audio could not play:", err);
+    alert("Coach welcome failed to play: " + err.name + " - " + err.message);
+  });
       } catch (err) {
         console.error(err);
       }
