@@ -648,12 +648,11 @@
     const SILENCE_MS = 1500;
     const MIN_AUDIO_BYTES = 6000;
 
-    function getWelcomeKey() {
-      const id = getWixUserId() || "anon";
-      const plan = (wixPlanName || "default").replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-      return `rayCoachWelcomePlayed_${id}_v2`;
-    }
-
+   function getWelcomeKey() {
+  const id = getWixUserId() || "anon";
+  const plan = (wixPlanName || "default").replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+  return `rayWelcomePlayed_${id}_${plan}_v1`;
+}
     function setCoachTitle(name) {
       if (!coachTitleEl) return;
       const clean = String(name || "").trim();
