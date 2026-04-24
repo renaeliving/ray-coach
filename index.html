@@ -1607,8 +1607,10 @@ return;
     });
 window.addEventListener("load", () => {
   setTimeout(() => {
-    alert("Starting Ray Coach welcome");
-    replayWelcome();
+    const startWelcome = confirm("Play Ray Coach welcome?");
+    if (startWelcome) {
+      replayWelcome();
+    }
   }, 800);
 });
     initializePage();
