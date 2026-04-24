@@ -651,7 +651,7 @@
     function getWelcomeKey() {
       const id = getWixUserId() || "anon";
       const plan = (wixPlanName || "default").replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-      return `rayWelcomePlayed_${id}_${plan}_v1`;
+      return `rayCoachWelcomePlayed_${id}_v1`;
     }
 
     function setCoachTitle(name) {
