@@ -383,9 +383,10 @@
         </div>
 
         <div id="upload-locked-message" class="locked-upload" style="display:none;">
-  <strong>Upgrade to Ray Pro and save $17 on your first month.</strong>
+  <strong>This feature is only available in Ray Pro.</strong>
   <p>
-    Use coupon code <strong style="display:inline; color:#f9fafb;">B2PUpgrade</strong> when you upgrade to
+    Upgrade to Ray Pro and save $17 on your first month. Use coupon code
+    <strong style="display:inline; color:#f9fafb;">B2PUpgrade</strong> when you upgrade to
     <a
       href="https://www.projectpilot.ai/pricing-plans/list"
       target="_blank"
@@ -396,23 +397,7 @@
   </p>
 </div>
 
-        <div style="margin-top:-2px; margin-bottom:10px;">
-          <button
-            id="csv-format-help-btn"
-            type="button"
-            style="
-              background:none;
-              border:none;
-              padding:0;
-              color:#38bdf8;
-              font-size:0.82rem;
-              cursor:pointer;
-              text-decoration:underline;
-            "
-          >
-            What should my CSV include?
-          </button>
-        </div>
+      
 
         <div id="upload-status"></div>
       </section>
@@ -1496,19 +1481,25 @@ updateOpenMicIndicator();
       setVoiceState("idle", "");
     }
 
-    csvFormatHelpBtn.addEventListener("click", () => {
-      csvFormatModal.style.display = "flex";
-    });
+    if (csvFormatHelpBtn && csvFormatModal) {
+  csvFormatHelpBtn.addEventListener("click", () => {
+    csvFormatModal.style.display = "flex";
+  });
+}
 
-    closeCsvFormatModalBtn.addEventListener("click", () => {
+if (closeCsvFormatModalBtn && csvFormatModal) {
+  closeCsvFormatModalBtn.addEventListener("click", () => {
+    csvFormatModal.style.display = "none";
+  });
+}
+
+if (csvFormatModal) {
+  csvFormatModal.addEventListener("click", (e) => {
+    if (e.target === csvFormatModal) {
       csvFormatModal.style.display = "none";
-    });
-
-    csvFormatModal.addEventListener("click", (e) => {
-      if (e.target === csvFormatModal) {
-        csvFormatModal.style.display = "none";
-      }
-    });
+    }
+  });
+}
 
     window.addEventListener("message", (event) => {
       console.log("Ray app received message:", event.data);
