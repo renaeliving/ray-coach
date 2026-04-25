@@ -300,46 +300,7 @@
   </style>
 </head>
 <body>
-  <div id="start-ray-overlay" style="
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(0, 0, 0, 0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-">
-  <div style="
-    max-width: 520px;
-    width: 100%;
-    background: #020617;
-    border: 1px solid #1f2937;
-    border-radius: 20px;
-    padding: 28px;
-    text-align: center;
-    color: #e5e7eb;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.7);
-  ">
-    <h1 style="margin: 0 0 10px; font-size: 1.6rem;">Welcome to Ray Coach</h1>
-    <p style="margin: 0 0 20px; color: #cbd5e1; line-height: 1.5;">
-      Click below to start Ray and hear your welcome message.
-    </p>
-    <button id="start-ray-btn" type="button" style="
-      border: none;
-      border-radius: 999px;
-      padding: 12px 22px;
-      font-size: 1rem;
-      cursor: pointer;
-      background: linear-gradient(135deg, #0ea5e9, #2563eb);
-      color: white;
-      font-weight: 600;
-    ">
-      Start Ray
-    </button>
-  </div>
-</div>
+  
   <div id="page-root">
     <div id="ray-sidebar">
       <div id="ray-image-wrap">
@@ -351,7 +312,24 @@
       </div>
 
       <div id="voice-state"></div>
-
+<div id="welcome-fallback" style="
+  display:none;
+  margin-top:6px;
+  font-size:0.75rem;
+  color:#94a3b8;
+  text-align:center;
+">
+  <button id="play-welcome-fallback" style="
+    background:none;
+    border:none;
+    color:#38bdf8;
+    cursor:pointer;
+    text-decoration:underline;
+    font-size:0.75rem;
+  ">
+    ▶ Play welcome
+  </button>
+</div>
       <button id="replay-welcome-btn" class="upload-btn secondary" type="button">Replay Welcome</button>
 
       <div id="open-mic-indicator" class="mic-indicator">
@@ -966,13 +944,17 @@
           welcomeAudio.src = introUrl;
         }
 
-      welcomeAudio.play()
+     welcomeAudio.play()
   .then(() => {
     console.log("Coach welcome audio started successfully.");
+    const fallback = document.getElementById("welcome-fallback");
+    if (fallback) fallback.style.display = "none";
   })
   .catch((err) => {
     console.error("Intro audio could not play:", err);
-   
+
+    const fallback = document.getElementById("welcome-fallback");
+    if (fallback) fallback.style.display = "block";
   });
       } catch (err) {
         console.error(err);
@@ -1649,18 +1631,18 @@ return;
         sendChatMessage();
       }
     });
-const startRayOverlay = document.getElementById("start-ray-overlay");
-const startRayBtn = document.getElementById("start-ray-btn");
 
-if (startRayBtn) {
-  startRayBtn.addEventListener("click", () => {
-    if (startRayOverlay) {
-      startRayOverlay.style.display = "none";
-    }
+    const fallbackBtn = document.getElementById("play-welcome-fallback");
+
+if (fallbackBtn) {
+  fallbackBtn.addEventListener("click", () => {
+    const fallback = document.getElementById("welcome-fallback");
+    if (fallback) fallback.style.display = "none";
 
     replayWelcome();
   });
 }
+    
     initializePage();
   </script>
 </body>
