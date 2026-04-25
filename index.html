@@ -891,21 +891,23 @@
   return "https://static.wixstatic.com/mp3/3cf059_83d806b74f4e40df93ff62f1e4cf2bc2.mp3";
 }
 
-    function maybeAutoPlayWelcome(force = false) {
-      if (!force && (isPlayingWelcome || currentReplyAudio)) return;
+   function maybeAutoPlayWelcome(force = false) {
+  if (!force && (isPlayingWelcome || currentReplyAudio)) return;
 
-      const introUrl = getIntroUrlForPlan(wixPlanName);
-      if (!introUrl) return;
+  const introUrl = getIntroUrlForPlan(wixPlanName);
+  if (!introUrl) return;
 
-      const welcomeKey = getWelcomeKey();
-      if (!force && localStorage.getItem(welcomeKey) === "true") return;
+  const welcomeKey = getWelcomeKey();
 
-      localStorage.setItem(welcomeKey, "true");
-      updateWelcomeButton();
-      replayWelcome();
-    }
+  if (!force && localStorage.getItem(welcomeKey) === "true") {
+    updateWelcomeButton();
+    return;
+  }
 
-    function replayWelcome() {
+  replayWelcome(force);
+}
+
+ function replayWelcome(force = false) {
       try {
         const introUrl = getIntroUrlForPlan(wixPlanName);
 
@@ -950,17 +952,17 @@
           welcomeAudio.src = introUrl;
         }
 
-     welcomeAudio.play()
+    welcomeAudio.play()
   .then(() => {
     console.log("Coach welcome audio started successfully.");
-    const fallback = document.getElementById("welcome-fallback");
-    if (fallback) fallback.style.display = "none";
+
+    localStorage.setItem(getWelcomeKey(), "true");
+    updateWelcomeButton();
   })
   .catch((err) => {
     console.error("Intro audio could not play:", err);
 
-    const fallback = document.getElementById("welcome-fallback");
-    if (fallback) fallback.style.display = "block";
+    updateWelcomeButton();
   });
       } catch (err) {
         console.error(err);
@@ -1639,16 +1641,7 @@ return;
       }
     });
 
-    const fallbackBtn = document.getElementById("play-welcome-fallback");
-
-if (fallbackBtn) {
-  fallbackBtn.addEventListener("click", () => {
-    const fallback = document.getElementById("welcome-fallback");
-    if (fallback) fallback.style.display = "none";
-
-    replayWelcome();
-  });
-}
+   
     
     initializePage();
     updateWelcomeButton();
