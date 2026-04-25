@@ -1577,10 +1577,9 @@ setCoachTitle(getWixMemberName());
   statusEl.textContent = "";
   return;
       if (!PRO_PLAN_NAMES.includes(wixPlanName)) {
-        statusEl.innerHTML = `This feature is only available with <a href="https://www.projectpilot.ai/pricing-plans/list" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">Ray Pro</a>.`;
-        return;
-      }
-
+  statusEl.textContent = "";
+  return;
+}
       const file = fileInput.files[0];
       const projectName = getSelectedProjectName();
       const currentUserId = getWixUserId();
