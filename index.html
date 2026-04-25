@@ -300,6 +300,46 @@
   </style>
 </head>
 <body>
+  <div id="start-ray-overlay" style="
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+">
+  <div style="
+    max-width: 520px;
+    width: 100%;
+    background: #020617;
+    border: 1px solid #1f2937;
+    border-radius: 20px;
+    padding: 28px;
+    text-align: center;
+    color: #e5e7eb;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+  ">
+    <h1 style="margin: 0 0 10px; font-size: 1.6rem;">Welcome to Ray Coach</h1>
+    <p style="margin: 0 0 20px; color: #cbd5e1; line-height: 1.5;">
+      Click below to start Ray and hear your welcome message.
+    </p>
+    <button id="start-ray-btn" type="button" style="
+      border: none;
+      border-radius: 999px;
+      padding: 12px 22px;
+      font-size: 1rem;
+      cursor: pointer;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: white;
+      font-weight: 600;
+    ">
+      Start Ray
+    </button>
+  </div>
+</div>
   <div id="page-root">
     <div id="ray-sidebar">
       <div id="ray-image-wrap">
@@ -1609,7 +1649,18 @@ return;
         sendChatMessage();
       }
     });
+const startRayOverlay = document.getElementById("start-ray-overlay");
+const startRayBtn = document.getElementById("start-ray-btn");
 
+if (startRayBtn) {
+  startRayBtn.addEventListener("click", () => {
+    if (startRayOverlay) {
+      startRayOverlay.style.display = "none";
+    }
+
+    replayWelcome();
+  });
+}
     initializePage();
   </script>
 </body>
