@@ -312,24 +312,7 @@
       </div>
 
       <div id="voice-state"></div>
-<div id="welcome-fallback" style="
-  display:none;
-  margin-top:6px;
-  font-size:0.75rem;
-  color:#94a3b8;
-  text-align:center;
-">
-  <button id="play-welcome-fallback" style="
-    background:none;
-    border:none;
-    color:#38bdf8;
-    cursor:pointer;
-    text-decoration:underline;
-    font-size:0.75rem;
-  ">
-    ▶ Play welcome
-  </button>
-</div>
+
       <button id="replay-welcome-btn" class="upload-btn secondary" type="button">Replay Welcome</button>
 
       <div id="open-mic-indicator" class="mic-indicator">
@@ -632,6 +615,28 @@
     const clearChatBtn = document.getElementById("clear-chat-btn");
 
     const replayWelcomeBtn = document.getElementById("replay-welcome-btn");
+    function updateWelcomeButton() {
+  const key = getWelcomeKey();
+  const hasPlayed = localStorage.getItem(key) === "true";
+
+  if (!replayWelcomeBtn) return;
+
+  if (!hasPlayed) {
+    replayWelcomeBtn.textContent = "Start Here – Welcome";
+
+    replayWelcomeBtn.style.background = "#ffffff";
+    replayWelcomeBtn.style.color = "#020617";
+    replayWelcomeBtn.style.fontSize = "0.95rem";
+    replayWelcomeBtn.style.fontWeight = "600";
+  } else {
+    replayWelcomeBtn.textContent = "Replay Welcome";
+
+    replayWelcomeBtn.style.background = "";
+    replayWelcomeBtn.style.color = "";
+    replayWelcomeBtn.style.fontSize = "";
+    replayWelcomeBtn.style.fontWeight = "";
+  }
+}
     const voiceStateEl = document.getElementById("voice-state");
     const rayImageWrap = document.getElementById("ray-image-wrap");
     const beginBtn = document.getElementById("begin-btn");
@@ -896,6 +901,7 @@
       if (!force && localStorage.getItem(welcomeKey) === "true") return;
 
       localStorage.setItem(welcomeKey, "true");
+      updateWelcomeButton();
       replayWelcome();
     }
 
@@ -1615,9 +1621,10 @@ return;
       }
     });
 
-    replayWelcomeBtn.addEventListener("click", () => {
-      maybeAutoPlayWelcome(true);
-    });
+   replayWelcomeBtn.addEventListener("click", () => {
+  maybeAutoPlayWelcome(true);
+  updateWelcomeButton();
+});
     beginBtn.addEventListener("click", beginConversation);
     pauseRayBtn.addEventListener("click", togglePauseRay);
     stopConversationBtn.addEventListener("click", stopConversation);
@@ -1644,6 +1651,7 @@ if (fallbackBtn) {
 }
     
     initializePage();
+    updateWelcomeButton();
   </script>
 </body>
 </html>
