@@ -620,9 +620,15 @@
 
     let currentReplyAudio = null;
 let currentReplyAudioUrl = null;
+let persistentReplyAudio = null;
 let welcomeAudio = null;
 let isPlayingWelcome = false;
 let rayMuted = false;
+
+let mobileAudioUnlocked = false;
+let mobileAudioContext = null;
+let mobileUnlockAudio = null;
+let speechRequestId = 0;
 
     let mediaStream = null;
     let mediaRecorder = null;
@@ -640,7 +646,7 @@ let rayMuted = false;
     let lastSpeechTime = 0;
     let listeningResumeAt = 0;
 
-    const VOLUME_THRESHOLD = 0.035;
+    const VOLUME_THRESHOLD = 0.018;
     const SILENCE_MS = 1500;
     const MIN_AUDIO_BYTES = 6000;
 
@@ -698,6 +704,85 @@ let rayMuted = false;
       chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
     }
 
+
+function primeRayReplyAudioPlayer() {
+  try {
+    if (!persistentReplyAudio) {
+      persistentReplyAudio = document.createElement("audio");
+      persistentReplyAudio.setAttribute("playsinline", "true");
+      persistentReplyAudio.setAttribute("webkit-playsinline", "true");
+      persistentReplyAudio.preload = "auto";
+      persistentReplyAudio.style.display = "none";
+      document.body.appendChild(persistentReplyAudio);
+    }
+
+    persistentReplyAudio.muted = false;
+    persistentReplyAudio.volume = 0.01;
+    persistentReplyAudio.src =
+      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
+
+    const playPromise = persistentReplyAudio.play();
+
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise
+        .then(() => {
+          persistentReplyAudio.pause();
+          persistentReplyAudio.currentTime = 0;
+          persistentReplyAudio.volume = 1;
+        })
+        .catch((err) => {
+          console.warn("Ray reply audio prime failed:", err);
+        });
+    }
+  } catch (err) {
+    console.warn("Ray reply audio prime failed:", err);
+  }
+}
+
+async function unlockMobileAudio() {
+  if (mobileAudioUnlocked) return;
+
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+    if (AudioContextClass) {
+      if (!mobileAudioContext) {
+        mobileAudioContext = new AudioContextClass();
+      }
+
+      if (mobileAudioContext.state === "suspended") {
+        await mobileAudioContext.resume();
+      }
+
+      const buffer = mobileAudioContext.createBuffer(1, 1, 22050);
+      const source = mobileAudioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(mobileAudioContext.destination);
+      source.start(0);
+    }
+  } catch (err) {
+    console.warn("Mobile AudioContext unlock failed:", err);
+  }
+
+  try {
+    if (!mobileUnlockAudio) {
+      mobileUnlockAudio = new Audio(
+        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA=="
+      );
+      mobileUnlockAudio.muted = true;
+      mobileUnlockAudio.playsInline = true;
+    }
+
+    await mobileUnlockAudio.play();
+    mobileUnlockAudio.pause();
+    mobileUnlockAudio.currentTime = 0;
+  } catch (err) {
+    console.warn("Mobile silent audio unlock failed:", err);
+  }
+
+  mobileAudioUnlocked = true;
+}
+
     function setVoiceState(state, text = "") {
       rayImageWrap.classList.remove("listening", "speaking");
 
@@ -723,7 +808,10 @@ let rayMuted = false;
   if (currentReplyAudio) {
     currentReplyAudio.pause();
     currentReplyAudio.currentTime = 0;
-    currentReplyAudio = null;
+
+    if (currentReplyAudio !== persistentReplyAudio) {
+      currentReplyAudio = null;
+    }
   }
 
   if (currentReplyAudioUrl) {
@@ -752,6 +840,8 @@ let rayMuted = false;
   }
 }
     function stopAllVoicePlayback() {
+  speechRequestId++;
+  isGeneratingSpeech = false;
   stopReplyAudio();
   stopWelcomeAudio();
 }
@@ -765,7 +855,10 @@ function stopRayVoiceOnly() {
   if (currentReplyAudio) {
     currentReplyAudio.pause();
     currentReplyAudio.currentTime = 0;
-    currentReplyAudio = null;
+
+    if (currentReplyAudio !== persistentReplyAudio) {
+      currentReplyAudio = null;
+    }
   }
 
   if (currentReplyAudioUrl) {
@@ -810,10 +903,14 @@ function stopRayVoiceOnly() {
 
   if (rayMuted) {
     updateRayMuteButton();
+    resumeLiveMicAfterRaySpeech();
     return;
   }
 
-  if (!audioBase64) return;
+  if (!audioBase64) {
+    resumeLiveMicAfterRaySpeech();
+    return;
+  }
 
   try {
     const byteCharacters = atob(audioBase64);
@@ -825,9 +922,30 @@ function stopRayVoiceOnly() {
 
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: "audio/mpeg" });
+
+    if (currentReplyAudioUrl) {
+      URL.revokeObjectURL(currentReplyAudioUrl);
+      currentReplyAudioUrl = null;
+    }
+
     currentReplyAudioUrl = URL.createObjectURL(blob);
-    currentReplyAudio = new Audio(currentReplyAudioUrl);
+
+    if (!persistentReplyAudio) {
+      persistentReplyAudio = document.createElement("audio");
+      persistentReplyAudio.setAttribute("playsinline", "true");
+      persistentReplyAudio.setAttribute("webkit-playsinline", "true");
+      persistentReplyAudio.preload = "auto";
+      persistentReplyAudio.style.display = "none";
+      document.body.appendChild(persistentReplyAudio);
+    }
+
+    currentReplyAudio = persistentReplyAudio;
+    currentReplyAudio.pause();
+    currentReplyAudio.currentTime = 0;
+    currentReplyAudio.src = currentReplyAudioUrl;
     currentReplyAudio.playbackRate = 1.18;
+    currentReplyAudio.muted = false;
+    currentReplyAudio.volume = 1;
 
     updateRayMuteButton();
 
@@ -839,27 +957,31 @@ function stopRayVoiceOnly() {
       updateRayMuteButton();
       listeningResumeAt = Date.now() + 450;
       stopReplyAudio();
-      chatStatusEl.textContent = conversationActive ? "Open Mic on. Start speaking any time." : "";
-      if (conversationActive) {
-        setVoiceState("listening", "Open Mic on");
-      }
+      resumeLiveMicAfterRaySpeech();
     };
 
     currentReplyAudio.onerror = () => {
       updateRayMuteButton();
       listeningResumeAt = Date.now() + 450;
       stopReplyAudio();
-      chatStatusEl.textContent = conversationActive ? "Open Mic on. Start speaking any time." : "";
+      resumeLiveMicAfterRaySpeech();
     };
 
-    currentReplyAudio.play().catch((err) => {
-      console.error("Reply audio could not play:", err);
-      stopReplyAudio();
-      chatStatusEl.textContent = conversationActive ? "Open Mic on. Start speaking any time." : "";
-    });
+    const playPromise = currentReplyAudio.play();
+
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((err) => {
+        console.error("Reply audio could not play:", err);
+        chatStatusEl.textContent = conversationActive
+          ? "Tap Send Text once, then continue live chat."
+          : "";
+        stopReplyAudio();
+        resumeLiveMicAfterRaySpeech();
+      });
+    }
   } catch (err) {
     console.error("Could not decode ElevenLabs audio:", err);
-    chatStatusEl.textContent = conversationActive ? "Open Mic on. Start speaking any time." : "";
+    resumeLiveMicAfterRaySpeech();
   }
 }
     async function speakReply(reply) {
@@ -867,8 +989,11 @@ function stopRayVoiceOnly() {
 
   if (rayMuted) {
     updateRayMuteButton();
+    resumeLiveMicAfterRaySpeech();
     return;
   }
+
+  const thisSpeechRequestId = ++speechRequestId;
 
   isGeneratingSpeech = true;
   chatStatusEl.textContent = "Generating Ray's voice...";
@@ -883,14 +1008,22 @@ function stopRayVoiceOnly() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Speak failed");
 
+    if (thisSpeechRequestId !== speechRequestId || rayMuted) {
+      return;
+    }
+
     playAudioBase64(data.audioBase64);
   } catch (err) {
     console.error(err);
     chatStatusEl.textContent = conversationActive ? "Open Mic on. Start speaking any time." : "";
+    resumeLiveMicAfterRaySpeech();
   } finally {
-    isGeneratingSpeech = false;
+    if (thisSpeechRequestId === speechRequestId) {
+      isGeneratingSpeech = false;
+    }
   }
 }
+
 
   function getIntroUrlForPlan() {
   return "https://static.wixstatic.com/mp3/3cf059_83d806b74f4e40df93ff62f1e4cf2bc2.mp3";
@@ -928,6 +1061,7 @@ function replayWelcome(force = false) {
     if (!welcomeAudio) {
       welcomeAudio = new Audio(introUrl);
       welcomeAudio.playbackRate = 1.18;
+      welcomeAudio.playsInline = true;
 
       welcomeAudio.onplay = () => {
         isPlayingWelcome = true;
@@ -1163,6 +1297,10 @@ function replayWelcome(force = false) {
       const currentUserId = getWixUserId();
 
       if (!message) return;
+
+      primeRayReplyAudioPlayer();
+      unlockMobileAudio();
+
       if (!currentUserId) {
         chatStatusEl.textContent = "User session not found. Please return to the site and launch Ray again.";
         return;
@@ -1236,6 +1374,11 @@ updateOpenMicIndicator();
           : "";
 
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
       micSource = audioContext.createMediaStreamSource(mediaStream);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
@@ -1354,6 +1497,9 @@ async function toggleConversation() {
     async function beginConversation() {
       if (conversationActive) return;
 
+      primeRayReplyAudioPlayer();
+      unlockMobileAudio();
+
       stopAllVoicePlayback();
 
       try {
@@ -1404,6 +1550,59 @@ setVoiceState("idle", "");
       micSource = null;
     }
 
+
+async function pauseLiveMicForRaySpeech() {
+  if (!conversationActive) return;
+
+  if (monitorFrame) {
+    cancelAnimationFrame(monitorFrame);
+    monitorFrame = null;
+  }
+
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    stopSegmentRecorder({ discard: true });
+  }
+
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+  }
+
+  if (audioContext) {
+    try {
+      await audioContext.close();
+    } catch (err) {
+      console.warn("Audio context close failed:", err);
+    }
+    audioContext = null;
+  }
+
+  analyser = null;
+  micSource = null;
+  mediaRecorder = null;
+}
+
+async function resumeLiveMicAfterRaySpeech() {
+  if (!conversationActive) return;
+
+  try {
+    await ensureMicReady();
+
+    if (monitorFrame) {
+      cancelAnimationFrame(monitorFrame);
+      monitorFrame = null;
+    }
+
+    chatStatusEl.textContent = "Open Mic on. Start speaking any time.";
+    setVoiceState("listening", "Open Mic on");
+    monitorConversation();
+  } catch (err) {
+    console.error("Could not resume live mic:", err);
+    chatStatusEl.textContent = "Microphone access was blocked or unavailable.";
+    setVoiceState("idle", "");
+  }
+}
+
     async function sendVoiceBlob(blob) {
       const currentUserId = getWixUserId();
       if (!currentUserId) {
@@ -1450,8 +1649,22 @@ updateOpenMicIndicator();
 
         if (data.reply) {
           addChatMessage("assistant", data.reply);
-          chatStatusEl.textContent = "";
-          speakReply(data.reply);
+
+          if (conversationActive && !rayMuted) {
+            chatStatusEl.textContent = "Ray is responding...";
+            await pauseLiveMicForRaySpeech();
+          }
+
+          if (rayMuted) {
+            chatStatusEl.textContent = conversationActive
+              ? "Open Mic on. Ray voice is muted."
+              : "";
+            if (conversationActive) {
+              setVoiceState("listening", "Open Mic on");
+            }
+          } else {
+            speakReply(data.reply);
+          }
         } else {
           chatStatusEl.textContent = conversationActive
             ? "Open Mic on. Start speaking any time."
@@ -1648,11 +1861,20 @@ setCoachTitle(getWixMemberName());
     });
 
    replayWelcomeBtn.addEventListener("click", () => {
+  primeRayReplyAudioPlayer();
+  unlockMobileAudio();
   maybeAutoPlayWelcome(true);
   updateWelcomeButton();
 });
-    beginBtn.addEventListener("click", toggleConversation);
-    pauseRayBtn.addEventListener("click", togglePauseRay);
+    beginBtn.addEventListener("click", () => {
+      primeRayReplyAudioPlayer();
+      unlockMobileAudio();
+      toggleConversation();
+    });
+    pauseRayBtn.addEventListener("click", () => {
+      unlockMobileAudio();
+      togglePauseRay();
+    });
     stopConversationBtn.addEventListener("click", stopConversation);
     sendChatBtn.addEventListener("click", sendChatMessage);
     clearChatBtn.addEventListener("click", clearChatHistory);
