@@ -624,7 +624,6 @@ let persistentReplyAudio = null;
 let welcomeAudio = null;
 let isPlayingWelcome = false;
 let rayMuted = false;
-
 let mobileAudioUnlocked = false;
 let mobileAudioContext = null;
 let mobileUnlockAudio = null;
@@ -704,6 +703,9 @@ let speechRequestId = 0;
       chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
     }
 
+function isReplyAudioPlaying() {
+  return !!currentReplyAudio && !currentReplyAudio.paused && !currentReplyAudio.ended;
+}
 
 function primeRayReplyAudioPlayer() {
   try {
@@ -718,11 +720,9 @@ function primeRayReplyAudioPlayer() {
 
     persistentReplyAudio.muted = false;
     persistentReplyAudio.volume = 0.01;
-    persistentReplyAudio.src =
-      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
+    persistentReplyAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
 
     const playPromise = persistentReplyAudio.play();
-
     if (playPromise && typeof playPromise.then === "function") {
       playPromise
         .then(() => {
@@ -808,11 +808,9 @@ async function unlockMobileAudio() {
   if (currentReplyAudio) {
     currentReplyAudio.pause();
     currentReplyAudio.currentTime = 0;
-
-    if (currentReplyAudio !== persistentReplyAudio) {
-      currentReplyAudio = null;
-    }
   }
+
+  currentReplyAudio = null;
 
   if (currentReplyAudioUrl) {
     URL.revokeObjectURL(currentReplyAudioUrl);
@@ -852,14 +850,15 @@ function updateRayMuteButton() {
 }
 
 function stopRayVoiceOnly() {
+  speechRequestId++;
+  isGeneratingSpeech = false;
+
   if (currentReplyAudio) {
     currentReplyAudio.pause();
     currentReplyAudio.currentTime = 0;
-
-    if (currentReplyAudio !== persistentReplyAudio) {
-      currentReplyAudio = null;
-    }
   }
+
+  currentReplyAudio = null;
 
   if (currentReplyAudioUrl) {
     URL.revokeObjectURL(currentReplyAudioUrl);
@@ -972,9 +971,6 @@ function stopRayVoiceOnly() {
     if (playPromise && typeof playPromise.catch === "function") {
       playPromise.catch((err) => {
         console.error("Reply audio could not play:", err);
-        chatStatusEl.textContent = conversationActive
-          ? "Tap Send Text once, then continue live chat."
-          : "";
         stopReplyAudio();
         resumeLiveMicAfterRaySpeech();
       });
@@ -999,6 +995,10 @@ function stopRayVoiceOnly() {
   chatStatusEl.textContent = "Generating Ray's voice...";
 
   try {
+    if (conversationActive && !rayMuted) {
+      await pauseLiveMicForRaySpeech();
+    }
+
     const res = await fetch(SPEAK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1009,6 +1009,7 @@ function stopRayVoiceOnly() {
     if (!res.ok) throw new Error(data.error || "Speak failed");
 
     if (thisSpeechRequestId !== speechRequestId || rayMuted) {
+      resumeLiveMicAfterRaySpeech();
       return;
     }
 
@@ -1024,13 +1025,12 @@ function stopRayVoiceOnly() {
   }
 }
 
-
   function getIntroUrlForPlan() {
   return "https://static.wixstatic.com/mp3/3cf059_83d806b74f4e40df93ff62f1e4cf2bc2.mp3";
 }
 
    function maybeAutoPlayWelcome(force = false) {
-  if (!force && (isPlayingWelcome || currentReplyAudio)) return;
+  if (!force && (isPlayingWelcome || isReplyAudioPlaying())) return;
 
   const introUrl = getIntroUrlForPlan(wixPlanName);
   if (!introUrl) return;
@@ -1356,7 +1356,12 @@ updateOpenMicIndicator();
     }
 
     async function ensureMicReady() {
-      if (mediaStream && analyser && audioContext) return;
+      if (mediaStream && analyser && audioContext) {
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+        return;
+      }
 
       mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -1402,7 +1407,7 @@ updateOpenMicIndicator();
     }
 
     function startSegmentRecorder() {
-      if (!mediaStream || isProcessingVoice || isGeneratingSpeech || currentReplyAudio || isPlayingWelcome) return;
+      if (!mediaStream || isProcessingVoice || isGeneratingSpeech || isReplyAudioPlaying() || isPlayingWelcome) return;
       if (mediaRecorder && mediaRecorder.state === "recording") return;
 
       recordedChunks = [];
@@ -1468,7 +1473,7 @@ updateOpenMicIndicator();
       const busy =
         isProcessingVoice ||
         isGeneratingSpeech ||
-        !!currentReplyAudio ||
+        isReplyAudioPlaying() ||
         isPlayingWelcome ||
         now < listeningResumeAt;
 
@@ -1499,7 +1504,6 @@ async function toggleConversation() {
 
       primeRayReplyAudioPlayer();
       unlockMobileAudio();
-
       stopAllVoicePlayback();
 
       try {
@@ -1549,7 +1553,6 @@ setVoiceState("idle", "");
       analyser = null;
       micSource = null;
     }
-
 
 async function pauseLiveMicForRaySpeech() {
   if (!conversationActive) return;
@@ -1649,19 +1652,11 @@ updateOpenMicIndicator();
 
         if (data.reply) {
           addChatMessage("assistant", data.reply);
-
-          if (conversationActive && !rayMuted) {
-            chatStatusEl.textContent = "Ray is responding...";
-            await pauseLiveMicForRaySpeech();
-          }
-
+          chatStatusEl.textContent = rayMuted
+            ? "Open Mic on. Ray voice is muted."
+            : "Ray is responding...";
           if (rayMuted) {
-            chatStatusEl.textContent = conversationActive
-              ? "Open Mic on. Ray voice is muted."
-              : "";
-            if (conversationActive) {
-              setVoiceState("listening", "Open Mic on");
-            }
+            resumeLiveMicAfterRaySpeech();
           } else {
             speakReply(data.reply);
           }
@@ -1867,14 +1862,14 @@ setCoachTitle(getWixMemberName());
   updateWelcomeButton();
 });
     beginBtn.addEventListener("click", () => {
-      primeRayReplyAudioPlayer();
-      unlockMobileAudio();
-      toggleConversation();
-    });
+  primeRayReplyAudioPlayer();
+  unlockMobileAudio();
+  toggleConversation();
+});
     pauseRayBtn.addEventListener("click", () => {
-      unlockMobileAudio();
-      togglePauseRay();
-    });
+  unlockMobileAudio();
+  togglePauseRay();
+});
     stopConversationBtn.addEventListener("click", stopConversation);
     sendChatBtn.addEventListener("click", sendChatMessage);
     clearChatBtn.addEventListener("click", clearChatHistory);
